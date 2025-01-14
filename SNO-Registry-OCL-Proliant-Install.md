@@ -1,51 +1,50 @@
 # LINKS
 
-* [https://console.redhat.com/openshift/assisted-installer/clusters](https://console.redhat.com/openshift/assisted-installer/clusters)  
-* 
+* [https://console.redhat.com/openshift/assisted-installer/clusters](https://console.redhat.com/openshift/assisted-installer/clusters)
 
 # Install SNO via AI & Set up image registry
 
-* Go to console.redhat.com and login  
-  * Click on “OpenShift →”  
-  * Click “Create Cluster” from the “Red Hat OpenShift Container Platform” tile  
-  * It will show “Select an OpenShift cluster type to create”  
-  * Click the “Datacenter” tab  
-  * Click “Create cluster” under “Assisted Installer”  
-* Create cluster  
-  * Name cluster and domain (proliant-hw.localdomain)  
-  * Select OpenShift version & architecture  
-    * Note: layering is only supported on amd64 today  
-  * Check SNO box  
-  * Leave the rest as default and click next  
-  * Select additional operators. We’ll keep it simple and not include any.  
-  * Hit next  
-  * Click “Add host”  
-  * In the next dialog box:  
-    * Choose the type of ISO (I recommend minimal for iLO attached boot media)  
-    * Add ssh public key  
-    * Click “Generate Discovery ISO”  
-    * You can download the iso or in our case here we are just going to grab the URL  
-* Over to the iLO  
-  * Set up virtual media URL and set to boot up  
-  * Boot, get coffee  
-* Back to the console  
-  * Wait until the node shows up as Ready in the console  
-  * Next\!  
-  * Next\!  
-  * Networking \- we will leave defaults here  
-  * Next\!  
-  * Install cluster  
-  * Go for a quick lunch  
-  * Download kubeconfig & store it somewhere (the service will keep it for 20 days)  
-  * Grab kubeadmin password  
-  * Over to the terminal  
-    * `export KUBECONFIG=`  
-    * `oc login`  
-  * Wait, can’t connect  
-    * Back to console and copy DNS info  
-  * Login  
-    * `oc login --web`   
-    * `oc login`  
+* Go to console.redhat.com and login
+  * Click on “OpenShift →”
+  * Click “Create Cluster” from the “Red Hat OpenShift Container Platform” tile
+  * It will show “Select an OpenShift cluster type to create”
+  * Click the “Datacenter” tab
+  * Click “Create cluster” under “Assisted Installer”
+* Create cluster
+  * Name cluster and domain
+  * Select OpenShift version & architecture
+    * Note: layering is only supported on amd64 today
+  * Check SNO box
+  * Leave the rest as default and click next
+  * Select additional operators. We’ll keep it simple and not include any
+  * Hit next
+  * Click “Add host”
+  * In the next dialog box:
+    * Choose the type of ISO (I recommend minimal for iLO attached boot media)
+    * Add ssh public key
+    * Click “Generate Discovery ISO”
+    * You can download the iso or in our case here we are just going to grab the URL
+* Over to the iLO
+  * Set up virtual media URL and set to boot up
+  * Boot, get coffee
+* Back to the console
+  * Wait until the node shows up as Ready in the console
+  * Next\!
+  * Next\!
+  * Networking \- we will leave defaults here
+  * Next\!
+  * Install cluster
+  * Go for a quick lunch
+  * Download kubeconfig & store it somewhere (the service will keep it for 20 days)
+  * Grab kubeadmin password
+  * Over to the terminal
+    * `export KUBECONFIG=`
+    * `oc login`
+  * Wait, can’t connect
+    * Back to console and copy DNS info
+  * Login - one of these will do it!
+    * `oc login --web`
+    * `oc login`
     * `oc login --insecure-skip-tls-verify=false`
 
 # Enable on-board internal registry (optional)
@@ -72,8 +71,8 @@ Set storage to emptyDir (fine for us here, not for prod use, the storage will be
 oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"storage":{"emptyDir":{}}}}'
 ```
 
-* Now the image registry pod should start up:  
-  * `oc get pods -n openshift-image-registry`  
+* Now the image registry pod should start up
+  * `oc get pods -n openshift-image-registry`
   * Next we need to expose the registry to the host network
 
 ```
@@ -96,7 +95,7 @@ spec:
   featureSet: TechPreviewNoUpgrade
 ```
 
-Note: enabling TechPreviewNoUpgrade does exactly what it says: it permanently prevents this machine from updating to newer builds.
+Note: enabling TechPreviewNoUpgrade does exactly what it says: it permanently prevents this machine from updating to newer builds
 
 ```
 oc apply -f enable-feature-gate.yaml
@@ -117,11 +116,11 @@ OR
 oc project openshift-machine-config-operator
 ```
 
-Power users might want to look into a free tool called [K9s](https://k9scli.io/) (not shipped by Red Hat, just a free suggestion\!)
+Power users might want to look into a free tool called [K9s](https://k9scli.io/) (not shipped by Red Hat, just a suggestion\!)
 
 ## One-time setup
 
-Copy cluster pull secret to the MCO namespace (BASH)
+Copy cluster pull secret to the MCO namespace (make sure you use bash, it definitely doesn't work with `/usr/bin/fish`)
 
 ```
 oc create secret docker-registry global-pull-secret-copy \
@@ -130,7 +129,7 @@ oc create secret docker-registry global-pull-secret-copy \
   -o go-template='{{index .data ".dockerconfigjson" | base64decode}}')
 ```
 
-Copy RHEL entitlement to MCO namespace (BASH)
+Copy RHEL entitlement to MCO namespace (also bash)
 
 ```
 oc create secret generic etc-pki-entitlement \
@@ -163,7 +162,7 @@ oc get secrets -o name -n openshift-machine-config-operator -o=jsonpath='{.items
 
 Now we are going to deviate from the quickstart guide. Because this is SNO, we are going to apply this to the master pool and not create a new one. While the node is technically a control plane node and a compute node, the control plane configuration takes precedence.
 
-Let’s look at our Containerfile/dockerfile:
+Let’s look at our Containerfile/dockerfile
 
 ```
 FROM configs AS final
@@ -201,7 +200,7 @@ RUN ostree container commit
 
 As noted in the guide:
 
-* Multiple build stages are allowed  
+* Multiple build stages are allowed
 * One must use the configs image target (FROM configs AS final) to inject content into it and it must be the last image in the build
 
 The new object in etcd for the layered build is called the MachineOSConfig. First we create a template for creating ours.
@@ -254,7 +253,7 @@ spec:
 EOF
 ```
 
-Now export the variables we want and update our yaml
+Now export the variables we want and update our yaml, remember to replace `builder-dockercfg-123` with the output of `oc get secrets -o name -n openshift-machine-config-operator -o=jsonpath='{.items[?(@.metadata.annotations.openshift\.io\/internal-registry-auth-token\.service-account=="builder")].metadata.name}'`
 
 ```
 export pushSecretName="builder-dockercfg-123"
@@ -270,9 +269,9 @@ yq -i e '.spec.buildInputs.containerFile[0].content = strenv(containerfileConten
 yq -i e '.spec.buildInputs.renderedImagePushspec = strenv(imageRegistryPullspec)' ./layered-machineosconfig.yaml
 ```
 
-You can always edit the yaml by hand, but this pattern pays off when you do it more than a couple of times\!
+You can always edit the yaml by hand, but this method pays off when you do it more than a couple of times\!
 
-Let’s take a look at the final yaml before we apply it. Ok, we need to make one more **important** change, in the “spec” section look for:
+Let’s take a look at the final yaml before we apply it. Ok, we need to make one more **important** change, in the “spec” section look for
 
 ```
   machineConfigPool:
@@ -309,7 +308,7 @@ oc logs -n machine-config-operator <buildpod> -f
 
 # Let’s see if it worked
 
-Once the build has succeeded, wait until the cluster restarts itself with the new image.
+Once the build has succeeded, wait until the cluster restarts itself with the new image
 
 ```
 $ oc get nodes
@@ -341,11 +340,11 @@ RESTful Interface Tool 5.3.0.0
 sh-5.1# 
 ```
 
-We can also see that amsd is running back on the iLO. 
+We can also see that amsd is running back on the iLO.
 
 # Recovery
 
-More info in the troubleshooting guide, but these are the commands you need to clear the objects created during a failed build. 
+More info in the troubleshooting guide, but these are the commands you need to clear the objects created during a failed build.
 
 ```
 oc get configmaps -n openshift-machine-config-operator -l 'machineconfiguration.openshift.io/on-cluster-layering=' \
