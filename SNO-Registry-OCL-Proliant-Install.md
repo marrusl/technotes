@@ -253,7 +253,11 @@ spec:
 EOF
 ```
 
-Now export the variables we want and update our yaml, remember to replace `builder-dockercfg-123` with the output of `oc get secrets -o name -n openshift-machine-config-operator -o=jsonpath='{.items[?(@.metadata.annotations.openshift\.io\/internal-registry-auth-token\.service-account=="builder")].metadata.name}'`
+Now export the variables we want and update our yaml, remember to replace `builder-dockercfg-123` with the output of
+
+```
+`oc get secrets -o name -n openshift-machine-config-operator -o=jsonpath='{.items[?(@.metadata.annotations.openshift\.io\/internal-registry-auth-token\.service-account=="builder")].metadata.name}'`
+```
 
 Note: [yq](https://github.com/mikefarah/yq) is available in Fedora and Brew. It is not shipped in RHEL.
 
