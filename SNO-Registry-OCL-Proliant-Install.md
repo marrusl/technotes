@@ -79,6 +79,11 @@ oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patc
 oc patch configs.imageregistry.operator.openshift.io/cluster --patch '{"spec":{"defaultRoute":true}}' --type=merge
 ```
 
+* To check to see if the default route is live
+```
+oc get route default-route -n openshift-image-registry --template='{{ .spec.host }}'
+```
+
 # Enable feature gate to enable tech preview features (4.17)
 
 [Docs](https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/hosted_control_planes/hcp-using-feature-gates#hcp-enable-feature-sets_hcp-using-feature-gates)
