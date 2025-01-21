@@ -2,15 +2,19 @@
 
 * [https://console.redhat.com/openshift/assisted-installer/clusters](https://console.redhat.com/openshift/assisted-installer/clusters)
 
+# Notes
+
+
+
 # Install SNO via AI & Set up image registry
 
-* Go to console.redhat.com and login
+Go to console.redhat.com and login
   * Click on “OpenShift →”
   * Click “Create Cluster” from the “Red Hat OpenShift Container Platform” tile
   * It will show “Select an OpenShift cluster type to create”
   * Click the “Datacenter” tab
   * Click “Create cluster” under “Assisted Installer”
-* Create cluster
+Create cluster
   * Name cluster and domain
   * Select OpenShift version & architecture
     * Note: layering is only supported on amd64 today
@@ -24,10 +28,10 @@
     * Add ssh public key
     * Click “Generate Discovery ISO”
     * You can download the iso or in our case here we are just going to grab the URL
-* Over to the iLO
+Over to the iLO
   * Set up virtual media URL and set to boot up
   * Boot, get coffee
-* Back to the console
+Back to the console
   * Wait until the node shows up as Ready in the console
   * Next\!
   * Next\!
@@ -42,6 +46,7 @@
     * `oc login`
   * Wait, can’t connect
     * Back to console and copy DNS info
+    * Login to web console
   * Login - one of these will do it!
     * `oc login --web`
     * `oc login`
@@ -49,7 +54,7 @@
 
 # Enable on-board internal registry (optional)
 
-Let’s enable the internal registry, which is disabled by default on bare metal, and other non-cloud deployments. If you want to use your own container registry, that is fully supported as well.
+Let’s enable the internal registry, which is disabled by default on bare metal. If you want to use your own container registry, that is fully supported as well.
 
 * [DOCS LINK](https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/registry/index)
 
@@ -84,7 +89,7 @@ oc patch configs.imageregistry.operator.openshift.io/cluster --patch '{"spec":{"
 oc get route default-route -n openshift-image-registry --template='{{ .spec.host }}'
 ```
 
-# Enable feature gate to enable tech preview features (4.17)
+# Enable feature gate to enable tech preview features (4.17 and 4.18 pre-release)
 
 [Docs](https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/hosted_control_planes/hcp-using-feature-gates#hcp-enable-feature-sets_hcp-using-feature-gates)
 
@@ -197,6 +202,7 @@ gpgcheck=0
 gpgkey=https://downloads.linux.hpe.com/repo/spp/GPG-KEY-spp,https://downloads.linux.hpe.com/repo/spp/GPG-KEY2-spp
 EOF
 
+# We need this directory to satisfy amsd
 RUN mkdir /var/opt
 RUN dnf install -y amsd ilorest
 
@@ -311,7 +317,7 @@ First you will see a new pod for the Machine OS Builder controller, and moment o
 build-rendered-master-eeb245f06b1a2ad6f151e282b7866099
 ```
 
-We can watch the build in progress by tailing the pod logs. This is our first GA release so be prepared for a LOT of detail\!
+We can watch the build in progress by tailing the pod logs. This might be our first GA release so be prepared for a LOT of detail\!
 
 ```
 oc logs -n machine-config-operator <buildpod> -f
