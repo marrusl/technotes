@@ -44,12 +44,14 @@ Back to the console
   * Go for a quick lunch
   * Download kubeconfig & store it somewhere (the service will keep it for 20 days)
   * Grab kubeadmin password
+  * Wait, I can’t connect to the web console!
+    * Back to Assited installer page
+    * Look for "Not able to access the Web Console?" and click it to get DNS or `/etc/hosts` info and apply it to your workstation or DNS.
+    * Login to web console
+
+Let's login to the command line
   * Over to the terminal
     * `export KUBECONFIG=`
-    * `oc login`
-  * Wait, can’t connect
-    * Back to console and copy DNS info
-    * Login to web console
   * Login - one of these will do it!
     * `oc login --web`
     * `oc login`
