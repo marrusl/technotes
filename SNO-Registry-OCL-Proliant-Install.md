@@ -14,6 +14,7 @@ Go to console.redhat.com and login
   * It will show “Select an OpenShift cluster type to create”
   * Click the “Datacenter” tab
   * Click “Create cluster” under “Assisted Installer”
+
 Create cluster
   * Name cluster and domain
   * Select OpenShift version & architecture
@@ -28,9 +29,11 @@ Create cluster
     * Add ssh public key
     * Click “Generate Discovery ISO”
     * You can download the iso or in our case here we are just going to grab the URL
+
 Over to the iLO
   * Set up virtual media URL and set to boot up
   * Boot, get coffee
+
 Back to the console
   * Wait until the node shows up as Ready in the console
   * Next\!
