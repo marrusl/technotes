@@ -6,7 +6,7 @@ For customers and partners interested in customizing RHEL CoreOS (RHCOS) there i
 
 # Does On-cluster Layering have anything to do with `bootc` and Image mode?
 
-    Absolutely. `bootc` was originally an enhancement to rpm-ostree called [OSTree Native containers](https://coreos.github.io/rpm-ostree/container/). Today, they have essentially the same functionality, i.e., the ability to customize operating system images with a familiar container build process. Eventually OpenShift will converge on bootc as the underlying technology but operationally they act the same already. Migration should be a non-event for users.
+Absolutely. `bootc` was originally an enhancement to rpm-ostree called [OSTree Native containers](https://coreos.github.io/rpm-ostree/container/). Today, they have essentially the same functionality, i.e., the ability to customize operating system images with a familiar container build process. Eventually OpenShift will converge on bootc as the underlying technology but operationally they act the same already. Migration should be a non-event for users.
 
 # LINKS
 
