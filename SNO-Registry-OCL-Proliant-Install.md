@@ -109,7 +109,7 @@ oc get route default-route -n openshift-image-registry --template='{{ .spec.host
 
 Note: Required for 4.17 and 4.18 until OCL officially goes GA which might be 4.18.z or 4.19
 
-[Docs](https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/hosted_control_planes/hcp-using-feature-gates#hcp-enable-feature-sets_hcp-using-feature-gates)
+[Docs](https://docs.openshift.com/container-platform/4.18/nodes/clusters/nodes-cluster-enabling-features.html)
 
 enable-feature-gate.yaml
 
@@ -128,6 +128,8 @@ Note: enabling TechPreviewNoUpgrade does exactly what it says: it permanently pr
 ```
 oc apply -f enable-feature-gate.yaml
 ```
+
+Note: this will cause a reboot. May as well wait until that's through before continuing.
 
 # Enable OCL
 
