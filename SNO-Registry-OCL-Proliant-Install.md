@@ -1,10 +1,13 @@
+# Introduction
+
+The easiest way to get started with "full blown" OpenShift (OCP) is using the Assisted installer to deploy Single-node OpenShift (SNO). This guide will walk you through the basic procedure. It's written using HPE tools on Proliant as an example, but could be replicated on other bare metal or virtual deployments. I've only tested it with QEMU/KVM personally, but any "machine" should do.
+
+For customers and partners interested in customizing RHEL CoreOS (RHCOS) there is also a walkthrough of setting up on-cluster layering (OCL) to deploy some HPE binaries.
+
 # LINKS
 
 * [https://console.redhat.com/openshift/assisted-installer/clusters](https://console.redhat.com/openshift/assisted-installer/clusters)
-
-# Notes
-
-
+* [Single Node OpenShift Requirements](https://docs.openshift.com/container-platform/4.18/installing/installing_sno/install-sno-preparing-to-install-sno.html)
 
 # Install SNO via AI & Set up image registry
 
@@ -51,7 +54,7 @@ Back to the console
 
 Let's login to the command line
   * Over to the terminal
-    * `export KUBECONFIG=`
+    * `export KUBECONFIG=<your kubeconfig>` (better to use absolute path in case you change directories while working with the cluster)
   * Login - one of these will do it!
     * `oc login --web`
     * `oc login`
@@ -81,9 +84,13 @@ Set storage to emptyDir (fine for us here, not for prod use, the storage will be
 oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"storage":{"emptyDir":{}}}}'
 ```
 
-* Now the image registry pod should start up
-  * `oc get pods -n openshift-image-registry`
-  * Next we need to expose the registry to the host network
+Now the image registry pod should restart
+
+```
+ `oc get pods -n openshift-image-registry`
+```
+
+Next we need to expose the registry to the host network
 
 ```
 oc patch configs.imageregistry.operator.openshift.io/cluster --patch '{"spec":{"defaultRoute":true}}' --type=merge
@@ -94,7 +101,9 @@ oc patch configs.imageregistry.operator.openshift.io/cluster --patch '{"spec":{"
 oc get route default-route -n openshift-image-registry --template='{{ .spec.host }}'
 ```
 
-# Enable feature gate to enable tech preview features (4.17 and 4.18 pre-release)
+# Enable feature gate to enable tech preview features 
+
+Note: Required for 4.17 and 4.18 until OCL officially goes GA which might be 4.18.z or 4.19
 
 [Docs](https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/hosted_control_planes/hcp-using-feature-gates#hcp-enable-feature-sets_hcp-using-feature-gates)
 
