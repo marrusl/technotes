@@ -1,8 +1,12 @@
 # Introduction
 
-The easiest way to get started with "full blown" OpenShift (OCP) is using the Assisted installer to deploy Single-node OpenShift (SNO). This guide will walk you through the basic procedure. It's written using HPE tools on Proliant as an example, but could be replicated on other bare metal or virtual deployments. I've only tested it with QEMU/KVM personally, but any "machine" should do.
+The easiest way to get started with "full blown" OpenShift (OCP) is using the Assisted installer to deploy Single-node OpenShift (SNO). This guide will walk you through the basic procedure. It's written using HPE bare metal as an example, but could be replicated on other bare metal or virtual deployments. Works fine on QEMU/KVM.
 
-For customers and partners interested in customizing RHEL CoreOS (RHCOS) there is also a walkthrough of setting up on-cluster layering (OCL) to deploy some HPE binaries.
+For customers and partners interested in customizing RHEL CoreOS (RHCOS) there is also a walkthrough of setting up on-cluster layering (OCL) to deploy some HPE binaries. The same basic procedure would apply for adding additional RHEL content (those repos are available automatically) or non-RHEL content.
+
+# Does On-cluster Layering have anything to do with `bootc` and Image mode?
+
+    Absolutely. `bootc` was originally an enhancement to rpm-ostree called [OSTree Native containers](https://coreos.github.io/rpm-ostree/container/). Today, they have essentially the same functionality, i.e., the ability to customize operating system images with a familiar container build process. Eventually OpenShift will converge on bootc as the underlying technology but operationally they act the same already. Migration should be a non-event for users.
 
 # LINKS
 
@@ -186,7 +190,10 @@ oc get secrets -o name -n openshift-machine-config-operator -o=jsonpath='{.items
 
 Now we are going to deviate from the quickstart guide. Because this is SNO, we are going to apply this to the master pool and not create a new one. While the node is technically a control plane node and a compute node, the control plane configuration takes precedence.
 
-Let’s look at our Containerfile/dockerfile
+
+## Let’s look at our Containerfile/dockerfile
+
+Because there is no local build context we have to use another method of injecting repo definitions for 3rd party integrations. One method is creating a multi-stage build. In this example, we'll use a heredoc to write the file inline.
 
 ```
 FROM configs AS final
@@ -216,9 +223,12 @@ gpgcheck=0
 gpgkey=https://downloads.linux.hpe.com/repo/spp/GPG-KEY-spp,https://downloads.linux.hpe.com/repo/spp/GPG-KEY2-spp
 EOF
 
-# We need this directory to satisfy amsd
+# We need this directory to satisfy amsd.
 RUN mkdir /var/opt
-RUN dnf install -y amsd ilorest
+
+# It only installs a single file into /opt so we can just move it to the system partitionn.
+RUN dnf install -y amsd ilorest && mv /var/opt/amsd/amsd.license /sbin/amsd.license
+
 
 RUN ostree container commit
 ```
