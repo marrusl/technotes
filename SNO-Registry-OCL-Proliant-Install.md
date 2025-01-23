@@ -146,8 +146,6 @@ OR
 oc project openshift-machine-config-operator
 ```
 
-Power users might want to look into a free tool called [K9s](https://k9scli.io/) (not shipped by Red Hat, just a suggestion\!)
-
 ## One-time setup
 
 Copy cluster pull secret to the MCO namespace (make sure you use bash, it definitely doesn't work with `/usr/bin/fish`)
@@ -228,8 +226,9 @@ EOF
 # We need this directory to satisfy amsd.
 RUN mkdir /var/opt
 
-# It only installs a single file into /opt so we can just move it to the system partitionn.
-RUN dnf install -y amsd ilorest && mv /var/opt/amsd/amsd.license /sbin/amsd.license
+# It only installs a single file into /opt so we can just move it to the system partition.
+RUN dnf install -y amsd ilorest
+RUN mkdir -p /usr/share/amsd && mv /var/opt/amsd/amsd.license /usr/share/amsd/amsd.license
 
 
 RUN ostree container commit
@@ -290,7 +289,7 @@ spec:
 EOF
 ```
 
-Now export the variables we want and update our yaml, remember to replace `builder-dockercfg-123` with the output of
+Run that to create the template. Then we'll export our variables and update our yaml using `yq`. Remember to replace `builder-dockercfg-123` with the output of
 
 ```
 oc get secrets -o name -n openshift-machine-config-operator -o=jsonpath='{.items[?(@.metadata.annotations.openshift\.io\/internal-registry-auth-token\.service-account=="builder")].metadata.name}'
