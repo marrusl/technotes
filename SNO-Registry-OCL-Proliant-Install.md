@@ -91,7 +91,7 @@ oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patc
 Now the image registry pod should restart
 
 ```
- `oc get pods -n openshift-image-registry`
+oc get pods -n openshift-image-registry
 ```
 
 Next we need to expose the registry to the host network
@@ -100,7 +100,7 @@ Next we need to expose the registry to the host network
 oc patch configs.imageregistry.operator.openshift.io/cluster --patch '{"spec":{"defaultRoute":true}}' --type=merge
 ```
 
-* To check to see if the default route is live
+To check to see if the default route is live
 ```
 oc get route default-route -n openshift-image-registry --template='{{ .spec.host }}'
 ```
@@ -109,7 +109,7 @@ oc get route default-route -n openshift-image-registry --template='{{ .spec.host
 
 Note: Required for 4.17 and 4.18 until OCL officially goes GA which might be 4.18.z or 4.19
 
-[Docs](https://docs.openshift.com/container-platform/4.18/nodes/clusters/nodes-cluster-enabling-features.html)
+[Official Docs](https://docs.openshift.com/container-platform/4.18/nodes/clusters/nodes-cluster-enabling-features.html)
 
 enable-feature-gate.yaml
 
@@ -223,13 +223,12 @@ gpgcheck=0
 gpgkey=https://downloads.linux.hpe.com/repo/spp/GPG-KEY-spp,https://downloads.linux.hpe.com/repo/spp/GPG-KEY2-spp
 EOF
 
-# We need this directory to satisfy amsd.
-RUN mkdir /var/opt
+# We need this directory to satisfy amsd
+RUN mkdir /var/opt 
+RUN dnf install -y amsd ilorest 
 
-# It only installs a single file into /opt so we can just move it to the system partition.
-RUN dnf install -y amsd ilorest
-RUN mkdir -p /usr/share/amsd && mv /var/opt/amsd/amsd.license /usr/share/amsd/amsd.license
-
+# Move the /opt content to the system partition
+RUN mkdir /usr/share/amsd && mv /var/opt/amsd/amsd.license /usr/share/amsd/amsd.license
 
 RUN ostree container commit
 ```
@@ -239,7 +238,7 @@ As noted in the guide:
 * Multiple build stages are allowed
 * One must use the configs image target (FROM configs AS final) to inject content into it and it must be the last image in the build
 
-The new object in etcd for the layered build is called the MachineOSConfig. First we create a template for creating ours.
+The new object in etcd for the layered build is called the MachineOSConfig. First we create a template for creating ours with this simple script.
 
 ```
 #!/usr/bin/env bash
@@ -253,9 +252,9 @@ metadata:
   name: layered
 spec:
   # Here is where you refer to the MachineConfigPool that you want your built
-  # image to be deployed to.
+  # image to be deployed to. We are using SNO, so this must be set to master.
   machineConfigPool:
-    name: layered
+    name: master
   buildInputs:
     containerFile:
     # Here is where you can set the Containerfile for your MachineConfigPool.
@@ -313,14 +312,8 @@ yq -i e '.spec.buildInputs.renderedImagePushspec = strenv(imageRegistryPullspec)
 
 You can always edit the yaml by hand, but this method pays off when you do it more than a couple of times\!
 
-Let’s take a look at the final yaml before we apply it. Ok, we need to make one more **important** change, in the “spec” section look for
+Note: one change from the Quickstart guide is that we have to target the master pool.
 
-```
-  machineConfigPool:
-    name: layered
-```
-
-Change “layered” to “master” because we are targeting the master pool. In SNO, the node is both worker and control-plane, but the control-plane configuration overrides “worker”.
 
 Alright, we’re ready, let’s do this\!
 
