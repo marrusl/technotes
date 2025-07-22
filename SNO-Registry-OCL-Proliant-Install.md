@@ -2,7 +2,11 @@
 
 The easiest way to get started with "full blown" OpenShift (OCP) is using the Assisted installer to deploy Single-node OpenShift (SNO). This guide will walk you through the basic procedure. It's written using HPE bare metal as an example, but could be replicated on other bare metal or virtual deployments. Works fine on QEMU/KVM.
 
-For customers and partners interested in customizing RHEL CoreOS (RHCOS) there is also a walkthrough of setting up on-cluster layering (OCL) to deploy some HPE binaries. The same basic procedure would apply for adding additional RHEL content (those repos are available automatically) or non-RHEL content.
+For customers and partners interested in customizing RHEL CoreOS (RHCOS) there is also a walkthrough of setting up on-cluster image mode (also known as on-cluster layering) to deploy some HPE binaries. The same basic procedure would apply for adding additional RHEL content (those repos are available automatically) or non-RHEL content.
+
+## Version Compatibility
+
+**This guide is written for OpenShift 4.19.** On-cluster image mode is GA (Generally Available) in OpenShift 4.19 and will be GA in an upcoming OpenShift 4.18.z release. For earlier versions (4.17 and earlier 4.18.x releases), additional feature gate configuration is required.
 
 # Does On-cluster Layering have anything to do with `bootc` and Image mode?
 
@@ -25,7 +29,7 @@ Go to console.redhat.com and login
 Create cluster
   * Name cluster and domain
   * Select OpenShift version & architecture
-    * Note: layering is only supported on amd64 today
+    * Note: on-cluster image mode is only supported on amd64 today
   * Check SNO box
   * Leave the rest as default and click next
   * Select additional operators. We’ll keep it simple and not include any
@@ -105,36 +109,12 @@ To check to see if the default route is live
 oc get route default-route -n openshift-image-registry --template='{{ .spec.host }}'
 ```
 
-# Enable feature gate to enable tech preview features 
 
-Note: Required for 4.17 and 4.18 until OCL officially goes GA which might be 4.18.z or 4.19
+# Enable On-cluster Image Mode
 
-[Official Docs](https://docs.openshift.com/container-platform/4.18/nodes/clusters/nodes-cluster-enabling-features.html)
+[Official Docs](https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/machine_configuration/mco-coreos-layering)
 
-enable-feature-gate.yaml
-
-```
-apiVersion: config.openshift.io/v1
-kind: FeatureGate
-metadata:
-  name: cluster
-# ...
-spec:
-  featureSet: TechPreviewNoUpgrade
-```
-
-Note: enabling TechPreviewNoUpgrade does exactly what it says: it permanently prevents this machine from updating to newer builds
-
-```
-oc apply -f enable-feature-gate.yaml
-```
-
-Note: this will cause a reboot. May as well wait until that's through before continuing.
-
-# Enable OCL
-
-[Full Quickstart Guide](https://github.com/openshift/machine-config-operator/blob/master/docs/onclusterlayering-quickstart.md)  
-[OCL Troubleshooting](https://github.com/openshift/machine-config-operator/blob/master/docs/onclusterlayering-troubleshooting.md)
+*Note: The upstream documentation still uses "on-cluster layering" terminology.*
 
 Most of these commands will be copied and pasted and will contain explicit namespace references, but to save yourself some typing later you can explicitly change to the MCO namespace. Super helpful while troubleshooting.
 
@@ -148,25 +128,7 @@ oc project openshift-machine-config-operator
 
 ## One-time setup
 
-Copy cluster pull secret to the MCO namespace (make sure you use bash, it definitely doesn't work with `/usr/bin/fish`)
 
-```
-oc create secret docker-registry global-pull-secret-copy \
-  --namespace "openshift-machine-config-operator" \
-  --from-file=.dockerconfigjson=<(oc get secret/pull-secret -n openshift-config \
-  -o go-template='{{index .data ".dockerconfigjson" | base64decode}}')
-```
-
-Copy RHEL entitlement to MCO namespace (also bash)
-
-```
-oc create secret generic etc-pki-entitlement \
-  --namespace "openshift-machine-config-operator" \
-  --from-file=entitlement.pem=<(oc get secret/etc-pki-entitlement \
-  -n openshift-config-managed -o go-template='{{index .data "entitlement.pem" | base64decode }}') \
-  --from-file=entitlement-key.pem=<(oc get secret/etc-pki-entitlement \
-  -n openshift-config-managed -o go-template='{{index .data "entitlement-key.pem" | base64decode }}')
-```
 
 We are going to use the internal registry so let’s create an imagestream
 
@@ -182,7 +144,7 @@ oc get imagestream/os-images  -n openshift-machine-config-operator -o=jsonpath='
 
 This should return: "image-registry.openshift-image-registry.svc:5000/openshift-machine-config-operator/os-images"
 
-Since we are using an imagestream we need to get the push and pull secret:
+Since we are using an imagestream we need to get the push secret:
 
 ```
 oc get secrets -o name -n openshift-machine-config-operator -o=jsonpath='{.items[?(@.metadata.annotations.openshift\.io\/internal-registry-auth-token\.service-account=="builder")].metadata.name}'
@@ -196,12 +158,12 @@ Now we are going to deviate from the quickstart guide. Because this is SNO, we a
 Because there is no local build context we have to use another method of injecting repo definitions for 3rd party integrations. One method is creating a multi-stage build. In this example, we'll use a heredoc to write the file inline.
 
 ```
+# On-cluster image mode is a multi-stage build where "configs" is the stock image plus
+# machineconfig content and "final" is the final image
 FROM configs AS final
 
 RUN rpm --import https://downloads.linux.hpe.com/repo/spp/GPG-KEY-spp
 RUN rpm --import https://downloads.linux.hpe.com/repo/spp/GPG-KEY2-spp
-RUN rpm --import https://downloads.linux.hpe.com/SDR/hpePublicKey2048_key1.pub
-RUN rpm --import https://downloads.linux.hpe.com/SDR/hpePublicKey2048_key2.pub
 
 # Create repo file for Gen 11 repo
 RUN cat <<EOF > /etc/yum.repos.d/hpe-sdr.repo
@@ -219,18 +181,19 @@ RUN cat <<EOF > /etc/yum.repos.d/ilorest.repo
 name=hpe restful interface tool
 baseurl=http://downloads.linux.hpe.com/SDR/repo/ilorest/rhel/9/x86_64/current
 enabled=1
-gpgcheck=0
+gpgcheck=1
 gpgkey=https://downloads.linux.hpe.com/repo/spp/GPG-KEY-spp,https://downloads.linux.hpe.com/repo/spp/GPG-KEY2-spp
 EOF
 
-# We need this directory to satisfy amsd
-RUN mkdir /var/opt 
-RUN dnf install -y amsd ilorest 
+# Create directory to satisfy amsd & install packages
+RUN mkdir /var/opt && \
+    dnf install -y amsd ilorest
 
 # Move the /opt content to the system partition
-RUN mkdir /usr/share/amsd && mv /var/opt/amsd/amsd.license /usr/share/amsd/amsd.license
-
-RUN ostree container commit
+RUN mkdir /usr/share/amsd && mv /var/opt/amsd/amsd.license /usr/share/amsd/amsd.license && \
+    bootc container lint
+    # NOTE: on 4.18 use `ostree container commit` in place of
+    # `bootc container lint`
 ```
 
 As noted in the guide:
@@ -238,87 +201,61 @@ As noted in the guide:
 * Multiple build stages are allowed
 * One must use the configs image target (FROM configs AS final) to inject content into it and it must be the last image in the build
 
-The new object in etcd for the layered build is called the MachineOSConfig. First we create a template for creating ours with this simple script.
+The new object in etcd for on-cluster image mode is called the MachineOSConfig. First we create a template for creating ours with this simple script.
 
 ```
 #!/usr/bin/env bash
 
 # Write the sample MachineOSConfig to a YAML file:
-cat << EOF > layered-machineosconfig.yaml
+cat << EOF > cluster-image-config.yaml
 ---
-apiVersion: machineconfiguration.openshift.io/v1alpha1
+apiVersion: machineconfiguration.openshift.io/v1
 kind: MachineOSConfig
 metadata:
-  name: layered
+  name: cluster-image-config
 spec:
-  # Here is where you refer to the MachineConfigPool that you want your built
-  # image to be deployed to. We are using SNO, so this must be set to master.
   machineConfigPool:
     name: master
-  buildInputs:
-    containerFile:
-    # Here is where you can set the Containerfile for your MachineConfigPool.
-    # You'll note that you need to provide an architecture. This is because this
-    # will eventually support multiarch clusters. For now, only noArch is
-    # supported.
-    - containerfileArch: noarch
-      content: |-
-        <containerfile contents>
-    # Here is where you can select an image builder type. For now, we only
-    # support the "PodImageBuilder" type that we maintain ourselves. Future
-    # integrations can / will include other build system integrations.
-    imageBuilder:
-      imageBuilderType: PodImageBuilder
-    # The Machine OS Builder needs to know what pull secret it can use to pull
-    # the base OS image.
-    baseImagePullSecret:
-      name: <secret-name>
-    # Here is where you specify the name of the push secret you use to push
-    # your newly-built image to.
-    renderedImagePushSecret:
-      name: <secret-name>
-    # Here is where you specify the image registry to push your newly-built
-    # images to.
-    renderedImagePushspec: <final image pullspec>
-  buildOutputs:
-    # Here is where you specify what image will be used on all of your nodes to
-    # pull the newly-built image.
-    currentImagePullSecret:
-      name: <secret-name>
+  containerFile:
+  - content: |
+      <containerfile contents>
+
+  # Here is where you can select an image builder type. For now, we only
+  # support the "Job" type that we maintain ourselves. Future
+  # integrations can / will include other build system integrations.
+  imageBuilder:
+    imageBuilderType: Job
+
+  # Here is where you specify the name of the push secret you use to push
+  # your newly-built image to.
+  renderedImagePushSecret:
+    name: builder-dockercfg-rfl85
+
+  # Here is where you specify the image registry to push your newly-built
+  # images to.
+  renderedImagePushSpec: image-registry.openshift-image-registry.svc:5000/openshift-machine-config-operator/os-images:latest
 EOF
 ```
 
-Run that to create the template. Then we'll export our variables and update our yaml using `yq`. Remember to replace `builder-dockercfg-123` with the output of
-
-```
-oc get secrets -o name -n openshift-machine-config-operator -o=jsonpath='{.items[?(@.metadata.annotations.openshift\.io\/internal-registry-auth-token\.service-account=="builder")].metadata.name}'
-```
+Run that to create the template. Then we'll export our variables and update our yaml using `yq`. Remember to replace `builder-dockercfg-rfl85` with the output of the previous command.
 
 Note: [yq](https://github.com/mikefarah/yq) is available in Fedora and Brew. It is not shipped in RHEL.
 
 ```
-export pushSecretName="builder-dockercfg-123"
-export pullSecretName="builder-dockercfg-123"
-export baseImagePullSecretName="global-pull-secret-copy"
+export pushSecretName="builder-dockercfg-rfl85"
 export containerfileContents="$(cat Containerfile)"
-export imageRegistryPullspec="image-registry.openshift-image-registry.svc:5000/openshift-machine-config-operator/os-images:latest"
 
-yq -i e '.spec.buildInputs.baseImagePullSecret.name = strenv(baseImagePullSecretName)' ./layered-machineosconfig.yaml
-yq -i e '.spec.buildInputs.renderedImagePushSecret.name = strenv(pushSecretName)' ./layered-machineosconfig.yaml
-yq -i e '.spec.buildOutputs.currentImagePullSecret.name = strenv(pullSecretName)' ./layered-machineosconfig.yaml
-yq -i e '.spec.buildInputs.containerFile[0].content = strenv(containerfileContents)' ./layered-machineosconfig.yaml
-yq -i e '.spec.buildInputs.renderedImagePushspec = strenv(imageRegistryPullspec)' ./layered-machineosconfig.yaml
+yq -i e '.spec.renderedImagePushSecret.name = strenv(pushSecretName)' ./cluster-image-config.yaml
+yq -i e '.spec.containerFile[0].content = strenv(containerfileContents)' ./cluster-image-config.yaml
 ```
 
-You can always edit the yaml by hand, but this method pays off when you do it more than a couple of times\!
-
-Note: one change from the Quickstart guide is that we have to target the master pool.
+You can always edit the yaml by hand, but this method pays off when you do it more than a couple of times!
 
 
 Alright, we’re ready, let’s do this\!
 
 ```
-oc apply -f layered-machineosconfig.yaml
+oc apply -f cluster-image-config.yaml
 ```
 
 # Build time
@@ -376,25 +313,3 @@ sh-5.1#
 ```
 
 We can also see that amsd is running back on the iLO.
-
-# Recovery
-
-More info in the troubleshooting guide, but these are the commands you need to clear the objects created during a failed build.
-
-```
-oc get configmaps -n openshift-machine-config-operator -l 'machineconfiguration.openshift.io/on-cluster-layering=' \
--o name | xargs oc delete -n openshift-machine-config-operator
-
-oc get secrets -n openshift-machine-config-operator -l 'machineconfiguration.openshift.io/on-cluster-layering=' \
--o name | xargs oc delete -n openshift-machine-config-operator
-
-oc get pods -n openshift-machine-config-operator -l 'machineconfiguration.openshift.io/on-cluster-layering=' \
--o name | xargs oc delete -n openshift-machine-config-operator
-```
-
-Delete the machineconfig, fix it, reapply it.
-
-```
-oc delete machineosconfig/layered
-```
-
